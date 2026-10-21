@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 송년회 슬롯머신 경품 추첨</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            marigold: '#ffb110',
+            coral: '#f64932',
+            saffron: '#e89d01',
+            graphite: '#615d59',
+            ink: '#000000'
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:wght@700;800;900&display=swap');
+
+    body {
+      background: radial-gradient(circle at top center, #1b1726, #09080d);
+      color: #ffffff;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow: hidden;
+    }
+
+    .notion-card {
+      background-color: rgba(22, 19, 32, 0.9);
+      border: 1px solid rgba(255, 215, 0, 0.25);
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+    }
+
+    /* MAXIMUM SIZE FIT SLOT CARD */
+    .slot-card {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 215, 0, 0.08));
+      border: 3px solid rgba(255, 215, 0, 0.6);
+      border-radius: 24px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7);
+      transition: border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.2s;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      flex-grow: 0;
+      flex-shrink: 0;
+    }
+
+    .slot-card.winner {
+      border-color: #ffe600;
+      background: linear-gradient(135deg, #fff2a3 0%, #ffd700 50%, #ff9900 100%);
+      box-shadow: 0 0 50px rgba(255, 230, 0, 0.95), inset 0 0 20px rgba(255, 255, 255, 1);
+      transform: scale(1.03);
+      animation: pulseWinner 1.8s infinite ease-in-out;
+      z-index: 10;
+    }
+
+    @keyframes pulseWinner {
+      0%, 100% { box-shadow: 0 0 35px rgba(255, 230, 0, 0.85), inset 0 0 14px rgba(255, 255, 255, 0.9); }
+      50% { box-shadow: 0 0 65px rgba(255, 230, 0, 1), inset 0 0 32px rgba(255, 255, 255, 1); }
+    }
+
+    .slot-badge {
+      background: rgba(255, 215, 0, 0.3);
+      border: 1.5px solid rgba(255, 255, 0, 0.6);
+      color: #ffe266;
+      font-weight: 900;
+    }
+
+    .slot-card.winner .slot-badge {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(0, 0, 0, 0.5);
+      color: #2b1700;
+    }
+
+    .slot-reel-box {
+      width: 100%;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.65);
+      border-radius: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slot-card.winner .slot-text-value {
+      color: #000000;
+      text-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
+    }
+
+    .slot-text-spinning {
+      color: #ffd700;
+      text-shadow: 0 0 25px rgba(255, 215, 0, 1);
+      will-change: transform, opacity;
+    }
+
+    .spinning-motion {
+      animation: fastSpinBlur 0.08s infinite linear;
+    }
+
+    @keyframes fastSpinBlur {
+      0% { transform: translateY(-4px) scaleY(1.08); filter: blur(1.5px); opacity: 0.8; }
+      50% { transform: translateY(0px) scaleY(1); filter: blur(0px); opacity: 1; }
+      100% { transform: translateY(4px) scaleY(1.08); filter: blur(1.5px); opacity: 0.8; }
+    }
+  </style>
+</head>
+
+<body class="h-screen flex flex-col bg-[#0b090f] text-white antialiased overflow-hidden selection:bg-marigold selection:text-ink">
+
+  <header class="h-16 border-b border-amber-500/30 bg-[#14111c]/95 shrink-0 flex items-center justify-between px-4 md:px-6 shadow-xl z-30">
+    <div class="flex items-center space-x-3 shrink-0">
+      <div class="w-9 h-9 rounded-full bg-amber-400/20 border border-amber-400/50 flex items-center justify-center text-lg shadow-sm text-amber-300">
+        🎰
+      </div>
+      <h1 class="text-base font-bold text-white tracking-tight hidden sm:block">
+        2026 송년회
+      </h1>
+    </div>
+
+    <!-- PRIZE TITLE BANNER DISPLAY (TOP) -->
+    <div class="flex items-center justify-center px-4 py-1.5 rounded-xl bg-amber-500/15 border border-amber-400/40 text-center mx-2 max-w-2xl flex-1">
+      <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping mr-2.5 shrink-0"></span>
+      <h2 id="currentPrizeDisplay" class="text-lg sm:text-2xl font-black text-yellow-300 tracking-tight drop-shadow truncate">
+        특별상 - 행운의 선물 (20명 동시 추첨)
+      </h2>
+    </div>
+
+    <div class="flex items-center space-x-2 shrink-0">
+      <button id="btnSoundToggle" class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-medium text-gray-300 transition flex items-center gap-1.5">
+        <i id="soundIcon" class="fas fa-volume-up text-amber-400"></i>
+        <span id="soundLabel" class="hidden md:inline">사운드 ON</span>
+      </button>
+
+      <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 font-semibold">
+        <i class="fas fa-users text-xs"></i>
+        <span>남은:</span>
+        <span id="activeCount" class="font-bold font-mono text-sm text-yellow-300">0명</span>
+      </div>
+
+      <button id="toggleSetupBtn" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-1.5">
+        <i class="fas fa-sliders text-xs"></i>
+        <span class="hidden md:inline">설정 접기/펴기</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 flex flex-col lg:flex-row p-3 md:p-4 gap-4 h-[calc(100vh-4rem)] overflow-hidden">
+
+    <!-- Left Control Sidebar -->
+    <aside id="setupPanel" class="w-full lg:w-[320px] notion-card p-4 flex flex-col justify-between shrink-0 h-full overflow-y-auto z-20">
+      
+      <div class="space-y-4">
+        <div class="flex justify-between items-center border-b border-white/10 pb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <h2 class="text-xs font-bold text-white tracking-wider uppercase">추첨 설정 및 실행</h2>
+          </div>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 text-amber-300">v11.0 Grid</span>
+        </div>
+
+        <!-- 1. Participant Import -->
+        <div class="space-y-2">
+          <div class="flex justify-between items-center">
+            <label class="text-xs font-bold text-gray-200 uppercase tracking-wide">1. 참가자 등록</label>
+            <span class="text-[11px] text-gray-400">총 <span id="totalParticipantCount" class="text-amber-400 font-bold">0</span>명</span>
+          </div>
+
+          <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+            <span class="text-[11px] text-gray-300 block font-medium"><i class="fas fa-list-ol text-amber-400 mr-1"></i> 번호 범위 생성</span>
+            <div class="flex items-center space-x-2">
+              <input type="number" id="rangeStart" value="1" min="1" class="w-16 bg-black/40 border border-white/15 rounded-lg px-2 py-1 text-xs font-mono text-center text-white focus:outline-none focus:border-amber-400">
+              <span class="text-gray-400 text-xs">~</span>
+              <input type="number" id="rangeEnd" value="150" min="1" class="w-16 bg-black/40 border border-white/15 rounded-lg px-2 py-1 text-xs font-mono text-center text-white focus:outline-none focus:border-amber-400">
+              <button id="btnGenRange" class="flex-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs py-1 rounded-lg transition border border-amber-500/40">
+                생성
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <label class="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-2 text-center cursor-pointer text-xs font-medium transition flex flex-col items-center justify-center gap-1 text-gray-300">
+              <i class="fas fa-file-excel text-emerald-400 text-sm"></i>
+              <span>엑셀 업로드</span>
+              <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" class="hidden">
+            </label>
+            <button id="btnTextModal" class="bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl p-2 text-center text-xs font-medium transition flex flex-col items-center justify-center gap-1 text-gray-300">
+              <i class="fas fa-pen-to-square text-amber-400 text-sm"></i>
+              <span>직접 입력</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Prize Settings & NO-SCROLL GRID PRESETS -->
+        <div class="space-y-2 pt-2 border-t border-white/10">
+          <div class="flex justify-between items-center">
+            <label class="text-xs font-bold text-gray-200 uppercase tracking-wide">2. 경품 설정 & 프리셋</label>
+            <button id="btnAddPrizePreset" class="text-[10px] text-amber-300 hover:text-amber-200 font-semibold flex items-center gap-1 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/30 cursor-pointer">
+              <i class="fas fa-plus"></i> 프리셋 추가
+            </button>
+          </div>
+          
+          <!-- GRID CONTAINER FOR PRESETS -->
+          <div id="prizePresetTabs" class="flex flex-wrap gap-1.5 pt-1 max-h-48 overflow-y-auto pr-1"></div>
+
+          <div class="space-y-2 pt-1">
+            <input type="text" id="prizeName" placeholder="경품명" value="특별상 - 행운의 선물" class="w-full bg-black/40 border border-white/15 rounded-xl px-3 py-1.5 text-xs font-semibold text-white focus:outline-none focus:border-amber-400">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400 whitespace-nowrap">추첨 인원:</span>
+              <input type="number" id="prizeCount" placeholder="수량" value="20" min="1" max="100" class="w-full bg-black/40 border border-white/15 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-center text-yellow-300 focus:outline-none focus:border-amber-400">
+              <span class="text-xs text-gray-400">명</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- BIG SPIN BUTTON RIGHT BELOW SETTINGS -->
+        <div class="pt-2 border-t border-white/10">
+          <button id="btnSpinSlot" class="w-full py-4 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-300 text-black font-black text-xl rounded-2xl shadow-2xl transition transform hover:scale-[1.02] active:scale-95 flex flex-col items-center justify-center gap-0.5 cursor-pointer border-2 border-yellow-200">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-play text-black text-xl"></i>
+              <span class="tracking-tight">추첨하기</span>
+            </div>
+            <span class="text-[10px] font-semibold text-black/80 tracking-wider">SPACE BAR 또는 클릭</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Bottom Status & Actions -->
+      <div class="pt-3 border-t border-white/10 flex justify-between items-center text-[11px] text-gray-400 mt-2">
+        <button id="btnClearParticipants" class="text-red-400 hover:underline transition">
+          <i class="fas fa-trash-can mr-1"></i>명단 비우기
+        </button>
+        <span id="slotStatusBadge" class="bg-amber-400/20 text-amber-300 border border-amber-400/40 font-bold px-2 py-0.5 rounded uppercase">
+          준비 완료
+        </span>
+      </div>
+
+    </aside>
+
+    <!-- Center Arena (MAXIMIZED FULL STAGE WITH FLEX WRAP CENTERED CARDS) -->
+    <section class="flex-1 flex flex-col h-full min-w-0">
+      
+      <div class="notion-card flex-1 p-3 sm:p-5 flex flex-col items-center justify-between relative bg-gradient-to-b from-[#181524] via-[#100d17] to-[#08070c] border-2 border-amber-400/60 shadow-2xl overflow-hidden">
+        
+        <!-- FLEX WRAP CONTAINER: Keeps cards maximum size & centered without stretching -->
+        <div id="slotGridContainer" class="w-full flex-1 flex flex-wrap justify-center items-center content-center gap-3 sm:gap-4 overflow-y-auto p-2">
+          <!-- Dynamic large slot cards inserted here -->
+        </div>
+
+        <div class="w-full pt-2 mt-1 border-t border-white/10 flex items-center justify-between shrink-0 px-2 z-10">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            <span class="text-[11px] text-amber-300 font-mono font-bold tracking-wider uppercase">
+              JACKPOT STAGE ARENA
+            </span>
+          </div>
+
+          <div class="text-[10px] text-gray-400 font-mono">
+            <span class="text-amber-300 font-bold">SPACE BAR</span> 스페이스바로 추첨 가능
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Modal for Text Input -->
+  <div id="textModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-[#181622] border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
+      <div class="flex justify-between items-center border-b border-white/10 pb-3">
+        <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+          <i class="fas fa-pen-to-square text-amber-400"></i> 명단 직접 입력
+        </h3>
+        <button id="btnCancelTextModal" class="text-gray-400 hover:text-white text-xs font-mono">✕</button>
+      </div>
+      <p class="text-xs text-gray-400">
+        이름이나 번호를 엔터(Enter)나 쉼표(,)로 구분해 입력하세요.
+      </p>
+      <textarea id="textModalInput" class="w-full h-44 bg-black/50 border border-white/15 rounded-xl p-3 text-xs font-mono text-white focus:outline-none focus:border-amber-400 placeholder:text-gray-600" placeholder="홍길동&#10;김철수&#10;101&#10;102"></textarea>
+      
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="btnCancelTextModal2" class="px-4 py-2 bg-white/5 text-gray-300 hover:bg-white/10 rounded-lg text-xs font-semibold">취소</button>
+        <button id="btnApplyTextModal" class="px-5 py-2 bg-amber-400 text-black font-bold hover:bg-amber-300 rounded-lg text-xs">등록</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  /* APPLICATION STATE */
+  const state = {
+    participants: Array.from({ length: 150 }, (_, i) => `${i + 1}`),
+    prizePresets: [
+      { id: 'p1', name: '특별상 - 행운의 선물', count: 20 },
+      { id: 'p2', name: '1등 - 최신 태블릿 PC', count: 1 },
+      { id: 'p3', name: '2등 - 스마트 워치', count: 3 },
+      { id: 'p4', name: '3등 - 백화점 상품권', count: 5 }
+    ],
+    activePresetId: 'p1',
+    currentPrize: { name: '특별상 - 행운의 선물', count: 20 },
+    currentWinners: [],
+    winnersHistory: [],
+    isSpinning: false,
+    soundEnabled: true
+  };
+
+  /* DOM ELEMENTS DOM BINDING */
+  let prizeNameInput, prizeCountInput, currentPrizeDisplay, activeCountEl;
+  let totalParticipantCountEl, prizePresetTabs, slotGridContainer, slotStatusBadge, btnSpinSlot, textModal;
+
+  function initDOMReferences() {
+    prizeNameInput = document.getElementById('prizeName');
+    prizeCountInput = document.getElementById('prizeCount');
+    currentPrizeDisplay = document.getElementById('currentPrizeDisplay');
+    activeCountEl = document.getElementById('activeCount');
+    totalParticipantCountEl = document.getElementById('totalParticipantCount');
+    prizePresetTabs = document.getElementById('prizePresetTabs');
+    slotGridContainer = document.getElementById('slotGridContainer');
+    slotStatusBadge = document.getElementById('slotStatusBadge');
+    btnSpinSlot = document.getElementById('btnSpinSlot');
+    textModal = document.getElementById('textModal');
+  }
+
+  /* SOUND SYNTHESIZER (TONE.JS) */
+  function playSound(type) {
+    if (!state.soundEnabled) return;
+    try {
+      if (Tone.context.state !== 'running') {
+        Tone.start();
+      }
+      if (type === 'spin') {
+        const synth = new Tone.Synth({
+          oscillator: { type: 'triangle' },
+          envelope: { attack: 0.005, decay: 0.05, sustain: 0, release: 0.05 }
+        }).toDestination();
+        synth.volume.value = -12;
+        synth.triggerAttackRelease('C5', '0.04');
+      } else if (type === 'stop') {
+        const synth = new Tone.MembraneSynth().toDestination();
+        synth.volume.value = -6;
+        synth.triggerAttackRelease('G2', '0.1');
+      } else if (type === 'jackpot') {
+        const synth = new Tone.PolySynth().toDestination();
+        synth.volume.value = -4;
+        const now = Tone.now();
+        synth.triggerAttackRelease(['C5', 'E5', 'G5', 'C6'], '0.4', now);
+        synth.triggerAttackRelease(['G5', 'B5', 'D6', 'G6'], '0.6', now + 0.3);
+      } else if (type === 'click') {
+        const synth = new Tone.MembraneSynth().toDestination();
+        synth.volume.value = -16;
+        synth.triggerAttackRelease('C3', '0.05');
+      }
+    } catch (e) {
+      console.warn('Audio play warning:', e);
+    }
+  }
+
+  /* DYNAMIC EXPANDED CARD DIMENSION CALCULATOR */
+  function getCardDynamicStyles(totalCount) {
+    if (totalCount <= 1) {
+      return { cardClass: 'w-full max-w-2xl h-80', fontClass: 'text-8xl font-black' };
+    } else if (totalCount <= 2) {
+      return { cardClass: 'w-[48%] max-w-lg h-72', fontClass: 'text-7xl font-black' };
+    } else if (totalCount <= 4) {
+      return { cardClass: 'w-[47%] max-w-md h-60', fontClass: 'text-6xl font-black' };
+    } else if (totalCount <= 6) {
+      return { cardClass: 'w-[31%] max-w-[340px] h-52', fontClass: 'text-5xl font-extrabold' };
+    } else if (totalCount <= 10) {
+      return { cardClass: 'w-[19%] min-w-[170px] h-44', fontClass: 'text-4xl font-extrabold' };
+    } else if (totalCount <= 15) {
+      return { cardClass: 'w-[15.5%] min-w-[145px] h-36', fontClass: 'text-3xl font-bold' };
+    } else {
+      return { cardClass: 'w-[13.5%] min-w-[125px] h-32', fontClass: 'text-2xl font-bold' };
+    }
+  }
+
+  function renderPrizePresets() {
+    prizePresetTabs.innerHTML = '';
+    state.prizePresets.forEach(preset => {
+      const isSelected = preset.id === state.activePresetId;
+      const card = document.createElement('div');
+      card.className = `group relative px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-between gap-1.5 border cursor-pointer ${
+        isSelected
+          ? 'bg-amber-400 text-black border-yellow-200 shadow-md scale-105'
+          : 'bg-white/5 hover:bg-white/10 text-gray-300 border-white/10'
+      }`;
+      
+      const contentWrapper = document.createElement('div');
+      contentWrapper.className = 'flex items-center gap-1.5 flex-1 min-w-0';
+      contentWrapper.innerHTML = `
+        <span class="truncate max-w-[100px]">${preset.name}</span>
+        <span class="px-1.5 py-0.2 rounded-full text-[10px] ${isSelected ? 'bg-black/20 text-black' : 'bg-white/10 text-amber-300'} font-mono shrink-0">${preset.count}명</span>
+      `;
+      contentWrapper.onclick = () => {
+        if (state.isSpinning) return;
+        playSound('click');
+        state.activePresetId = preset.id;
+        prizeNameInput.value = preset.name;
+        prizeCountInput.value = preset.count;
+        renderPrizePresets();
+        updatePrizeState();
+      };
+
+      const btnGroup = document.createElement('div');
+      btnGroup.className = 'flex items-center gap-1 shrink-0 ml-1';
+
+      // Edit Preset Button
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'p-1 hover:text-blue-500 transition cursor-pointer text-[10px]';
+      editBtn.title = '수정';
+      editBtn.innerHTML = '<i class="fas fa-pen"></i>';
+      editBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (state.isSpinning) return;
+        const newName = prompt('경품 이름을 입력하세요:', preset.name);
+        if (newName === null) return;
+        const newCountStr = prompt('추첨 인원을 입력하세요:', preset.count);
+        if (newCountStr === null) return;
+        
+        const newCount = Math.max(1, parseInt(newCountStr) || 1);
+        preset.name = newName.trim() || preset.name;
+        preset.count = newCount;
+
+        if (preset.id === state.activePresetId) {
+          prizeNameInput.value = preset.name;
+          prizeCountInput.value = preset.count;
+          updatePrizeState();
+        }
+        renderPrizePresets();
+        playSound('click');
+      };
+
+      // Delete Preset Button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'p-1 hover:text-red-500 transition cursor-pointer text-[11px]';
+      deleteBtn.title = '삭제';
+      deleteBtn.innerHTML = '<i class="fas fa-xmark"></i>';
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (state.isSpinning) return;
+        
+        state.prizePresets = state.prizePresets.filter(p => p.id !== preset.id);
+        
+        if (state.activePresetId === preset.id) {
+          if (state.prizePresets.length > 0) {
+            state.activePresetId = state.prizePresets[0].id;
+            prizeNameInput.value = state.prizePresets[0].name;
+            prizeCountInput.value = state.prizePresets[0].count;
+          } else {
+            state.activePresetId = null;
+          }
+          updatePrizeState();
+        }
+        renderPrizePresets();
+        playSound('click');
+      };
+
+      btnGroup.appendChild(editBtn);
+      btnGroup.appendChild(deleteBtn);
+
+      card.appendChild(contentWrapper);
+      card.appendChild(btnGroup);
+
+      prizePresetTabs.appendChild(card);
+    });
+  }
+
+  function updatePrizeState() {
+    const name = prizeNameInput.value.trim() || '경품';
+    const count = Math.max(1, parseInt(prizeCountInput.value) || 1);
+    
+    state.currentPrize = { name, count };
+    currentPrizeDisplay.textContent = `${name} (${count}명 동시 추첨)`;
+
+    // Active preset sync
+    const activePreset = state.prizePresets.find(p => p.id === state.activePresetId);
+    if (activePreset) {
+      activePreset.name = name;
+      activePreset.count = count;
+      renderPrizePresets();
+    }
+    
+    state.currentWinners = new Array(count).fill(null);
+    renderSlotGrid();
+  }
+
+  /* RENDER LARGE CENTERED SLOT GRID */
+  function renderSlotGrid() {
+    const totalCount = state.currentPrize.count;
+    const { cardClass, fontClass } = getCardDynamicStyles(totalCount);
+
+    slotGridContainer.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+
+    for (let i = 1; i <= totalCount; i++) {
+      const slotIdx = i - 1;
+      const winnerValue = state.currentWinners[slotIdx];
+      const isWinner = winnerValue !== null && winnerValue !== undefined;
+
+      const card = document.createElement('div');
+      card.className = `slot-card ${cardClass} ${isWinner ? 'winner' : ''}`;
+      card.id = `slot-card-${i}`;
+      card.innerHTML = `
+        <div class="flex justify-between items-center w-full mb-1">
+          <span class="slot-badge text-[11px] sm:text-xs px-2 py-0.5 rounded-full uppercase font-mono">당첨자 #${i}</span>
+          <button class="btn-respin ${isWinner ? '' : 'hidden'} px-2 py-0.5 bg-red-500/20 hover:bg-red-500/40 border border-red-500/40 text-red-200 text-xs font-bold rounded transition flex items-center gap-1" data-slot-index="${slotIdx}">
+            <i class="fas fa-rotate-right text-[10px]"></i> 재추첨
+          </button>
+        </div>
+        <div class="slot-reel-box">
+          <div class="slot-text-value ${fontClass} ${isWinner ? 'text-black font-black' : 'text-amber-200/40'} font-mono" id="slot-value-${i}">
+            ${isWinner ? winnerValue : '?'}
+          </div>
+        </div>
+      `;
+      fragment.appendChild(card);
+    }
+    slotGridContainer.appendChild(fragment);
+
+    slotGridContainer.querySelectorAll('.btn-respin').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const slotIdx = parseInt(btn.getAttribute('data-slot-index'));
+        respinSingleSlot(slotIdx);
+      };
+    });
+  }
+
+  function init() {
+    initDOMReferences();
+
+    // Event Listener: Spin Button
+    btnSpinSlot.addEventListener('click', () => {
+      spinMultiSlotGrid();
+    });
+
+    // Event Listener: Spacebar Spin
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        e.preventDefault();
+        spinMultiSlotGrid();
+      }
+    });
+
+    // Sound toggle
+    const btnSound = document.getElementById('btnSoundToggle');
+    const soundIcon = document.getElementById('soundIcon');
+    const soundLabel = document.getElementById('soundLabel');
+    btnSound.addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      if (state.soundEnabled) {
+        soundIcon.className = 'fas fa-volume-up text-amber-400';
+        soundLabel.textContent = '사운드 ON';
+      } else {
+        soundIcon.className = 'fas fa-volume-mute text-gray-500';
+        soundLabel.textContent = '사운드 OFF';
+      }
+    });
+
+    // Toggle Sidebar Panel
+    document.getElementById('toggleSetupBtn').addEventListener('click', () => {
+      const setupPanel = document.getElementById('setupPanel');
+      setupPanel.classList.toggle('hidden');
+    });
+
+    // Prize inputs change
+    prizeNameInput.addEventListener('input', updatePrizeState);
+    prizeCountInput.addEventListener('input', updatePrizeState);
+
+    // Number Range Generation
+    document.getElementById('btnGenRange').addEventListener('click', () => {
+      const start = parseInt(document.getElementById('rangeStart').value) || 1;
+      const end = parseInt(document.getElementById('rangeEnd').value) || 100;
+      if (start > end) return alert('시작 번호가 끝 번호보다 클 수 없습니다.');
+      
+      const newParticipants = [];
+      for (let i = start; i <= end; i++) newParticipants.push(`${i}`);
+      state.participants = newParticipants;
+      updateUI();
+      playSound('click');
+    });
+
+    // Clear Participants
+    document.getElementById('btnClearParticipants').addEventListener('click', () => {
+      if (confirm('참가자 명단을 비우시겠습니까?')) {
+        state.participants = [];
+        updateUI();
+      }
+    });
+
+    // Text Input Modal Events
+    document.getElementById('btnTextModal').addEventListener('click', () => {
+      textModal.classList.remove('hidden');
+    });
+    const hideTextModal = () => textModal.classList.add('hidden');
+    document.getElementById('btnCancelTextModal').addEventListener('click', hideTextModal);
+    document.getElementById('btnCancelTextModal2').addEventListener('click', hideTextModal);
+    document.getElementById('btnApplyTextModal').addEventListener('click', () => {
+      const rawText = document.getElementById('textModalInput').value;
+      const items = rawText.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+      if (items.length > 0) {
+        state.participants = items;
+        updateUI();
+        hideTextModal();
+        playSound('click');
+      }
+    });
+
+    // Excel File Upload
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = new Uint8Array(event.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          
+          const loaded = [];
+          json.forEach(row => {
+            row.forEach(cell => {
+              if (cell !== undefined && cell !== null && String(cell).trim() !== '') {
+                loaded.push(String(cell).trim());
+              }
+            });
+          });
+
+          if (loaded.length > 0) {
+            state.participants = loaded;
+            updateUI();
+            alert(`${loaded.length}명의 참가자가 등록되었습니다!`);
+          }
+        } catch (err) {
+          alert('엑셀 파일 분석 중 오류가 발생했습니다.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Preset addition
+    document.getElementById('btnAddPrizePreset').addEventListener('click', () => {
+      playSound('click');
+      const newId = 'p_' + Date.now();
+      const newPreset = { id: newId, name: '신규 경품', count: 1 };
+      state.prizePresets.push(newPreset);
+      state.activePresetId = newId;
+      prizeNameInput.value = newPreset.name;
+      prizeCountInput.value = newPreset.count;
+      renderPrizePresets();
+      updatePrizeState();
+    });
+
+    renderPrizePresets();
+    updatePrizeState();
+    updateUI();
+  }
+
+  /* HIGH PERFORMANCE DIGITAL FLIP ANIMATION */
+  function animateSlotDigitalFlip(slotNum, targetWinner, duration, onComplete) {
+    const valEl = document.getElementById(`slot-value-${slotNum}`);
+    const card = document.getElementById(`slot-card-${slotNum}`);
+
+    if (!valEl || !card) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    valEl.className = valEl.className.replace('slot-text-spinning', '').replace('spinning-motion', '');
+    valEl.classList.add('slot-text-spinning', 'spinning-motion');
+
+    const startTime = performance.now();
+    let lastAudioTime = 0;
+
+    function updateFrame(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      if (progress < 1) {
+        const randItem = state.participants[Math.floor(Math.random() * state.participants.length)];
+        if (valEl) valEl.textContent = randItem;
+
+        if (now - lastAudioTime > 75) {
+          playSound('spin');
+          lastAudioTime = now;
+        }
+        requestAnimationFrame(updateFrame);
+      } else {
+        if (valEl) {
+          valEl.classList.remove('spinning-motion', 'slot-text-spinning');
+          valEl.textContent = targetWinner;
+        }
+        if (card) card.classList.add('winner');
+        playSound('stop');
+        if (onComplete) onComplete();
+      }
+    }
+
+    requestAnimationFrame(updateFrame);
+  }
+
+  function respinSingleSlot(slotIdx) {
+    if (state.isSpinning) return;
+    if (state.participants.length === 0) {
+      alert('추첨 가능한 남은 참가자가 없습니다!');
+      return;
+    }
+
+    const slotNum = slotIdx + 1;
+    const card = document.getElementById(`slot-card-${slotNum}`);
+
+    state.isSpinning = true;
+    btnSpinSlot.disabled = true;
+
+    const newWinnerIndex = Math.floor(Math.random() * state.participants.length);
+    const newWinner = state.participants.splice(newWinnerIndex, 1)[0];
+
+    const oldWinner = state.currentWinners[slotIdx];
+    if (oldWinner) {
+      state.participants.push(oldWinner);
+    }
+
+    state.currentWinners[slotIdx] = newWinner;
+
+    if (card) {
+      card.classList.remove('winner');
+      const respinBtn = card.querySelector('.btn-respin');
+      if (respinBtn) respinBtn.classList.add('hidden');
+    }
+
+    playSound('click');
+
+    animateSlotDigitalFlip(slotNum, newWinner, 1500, () => {
+      state.isSpinning = false;
+      btnSpinSlot.disabled = false;
+      renderSlotGrid();
+
+      playSound('jackpot');
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.5 } });
+      updateUI();
+    });
+  }
+
+  function onSpinFinish(winners) {
+    state.isSpinning = false;
+    btnSpinSlot.disabled = false;
+    btnSpinSlot.classList.remove('opacity-50', 'cursor-not-allowed');
+
+    slotStatusBadge.textContent = '🎉 당첨 확정!';
+    slotStatusBadge.className = 'bg-emerald-400 text-black font-extrabold text-xs px-2 py-0.5 rounded uppercase shadow-md';
+
+    state.participants = state.participants.filter(p => !winners.includes(p));
+
+    state.winnersHistory.push({
+      prize: state.currentPrize.name,
+      winners: [...winners]
+    });
+
+    renderSlotGrid();
+    playSound('jackpot');
+
+    confetti({ particleCount: 220, spread: 130, origin: { y: 0.5 } });
+    setTimeout(() => {
+      confetti({ particleCount: 140, angle: 60, spread: 90, origin: { x: 0 } });
+      confetti({ particleCount: 140, angle: 120, spread: 90, origin: { x: 1 } });
+    }, 250);
+
+    updateUI();
+  }
+
+  function updateUI() {
+    if (activeCountEl) activeCountEl.textContent = `${state.participants.length}명`;
+    if (totalParticipantCountEl) totalParticipantCountEl.textContent = state.participants.length;
+  }
+
+  function spinMultiSlotGrid() {
+    if (state.isSpinning) return;
+
+    const requiredCount = state.currentPrize.count;
+    if (state.participants.length < requiredCount) {
+      alert(`대기 참가자가 부족합니다! (필요: ${requiredCount}명 / 남은 참가자: ${state.participants.length}명)`);
+      return;
+    }
+
+    state.isSpinning = true;
+    btnSpinSlot.disabled = true;
+    btnSpinSlot.classList.add('opacity-50', 'cursor-not-allowed');
+
+    slotStatusBadge.textContent = '🎰 추첨 중...';
+    slotStatusBadge.className = 'bg-amber-400/30 text-amber-300 border border-amber-400/50 text-xs font-extrabold px-2 py-0.5 rounded uppercase animate-pulse';
+
+    const availablePool = [...state.participants];
+    const selectedWinners = [];
+
+    for (let i = 0; i < requiredCount; i++) {
+      const randIdx = Math.floor(Math.random() * availablePool.length);
+      selectedWinners.push(availablePool.splice(randIdx, 1)[0]);
+    }
+
+    state.currentWinners = selectedWinners;
+
+    let completedSlots = 0;
+    const baseDuration = 1800;
+
+    for (let i = 1; i <= requiredCount; i++) {
+      const staggerDelay = (i - 1) * 60;
+      const totalDuration = baseDuration + staggerDelay;
+
+      setTimeout(() => {
+        animateSlotDigitalFlip(i, selectedWinners[i - 1], totalDuration, () => {
+          completedSlots++;
+          if (completedSlots === requiredCount) {
+            onSpinFinish(selectedWinners);
+          }
+        });
+      }, staggerDelay);
+    }
+  }
+
+  window.onload = function() {
+    init();
+  };
+</script>
+</body>
+</html>
